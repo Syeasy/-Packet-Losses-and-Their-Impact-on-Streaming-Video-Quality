@@ -47,12 +47,12 @@ def dfr_simulation(
         f_info = lines[i].split()
         f_number[i] = int(f_info[0]) # str -> int 编号
         f_type[i] = f_info[2]   # 类型
-        f_pkts[i] = math.ceil(int(f_info[3])/(188*8)) # split packets per frame
+        f_pkts[i] = math.ceil(int(f_info[3])/(188*8))   # split packets per frame
 
     # symbol loss sequence
     p = 1e-4
     q = p*(1.0 - loss_probability)/loss_probability
-    n_pkts = sum(f_pkts) # the number of packets for the whole frames
+    n_pkts = sum(f_pkts)    # the number of packets for the whole frames
     if ci:
         # apply convolutional interleaving/deinterleaving.
         # N.B.:
@@ -61,12 +61,11 @@ def dfr_simulation(
         # 3. Remove leading 2244 elements after deinterleaving.
         # TODO: Implement.
         # assume origin sequence is all 1
-        # interleaved_seq_iter = (conv_interleave(np.concatenate([np.ones(f_pkts[i] * 188 * 8), np.zeros(2244)]).astype(int)) for i in range(num_frames))
         d1 = [int(i) for i in "17,34,51,68,85,102,119,136,153,170,187".split(',')]
         d2 = d1[::-1]
     else:
         # TODO: Implement.
-        origin_seq_iter = (np.ones(f_pkts[i]*188*8) for i in range(num_frames))
+        print()
     # initialize variables.
     idx = -1
     for j in range(2):
@@ -78,73 +77,82 @@ def dfr_simulation(
     num_pkts_received = 0
     num_frames_decoded = 0
     num_frames_received = 0
-    losses = np.zeros(sum(f_pkts[i]))
+    losses = np.zeros(n_pkts)
     frame_loss = np.zeros(num_frames, dtype=bool)
+    frame_decoded = np.zeros(num_frames, dtype=bool)
     # main loop
     for i in range(num_frames):
         # frame loss
 
         if fec:
             # TODO: Set "frame_loss" based on "pkt_losses" with FEC.
-            fec_seq = np.ones(f_pkts[i] * (188 + 16) * 8)  # 使用Reed Salomon Code
+            fec_seq = np.ones(f_pkts[i] * (188 + 16) * 1)  # 使用Reed Salomon Code
             if ci:
-                fec_in_seq = conv_interleave(np.concatenate(fec_seq, np.zeros(2244)), d1)
-                loss_seq = sgm_generate(777, len(fec_in_seq),p,q)
+                fec_in_seq = conv_interleave(np.concatenate([fec_seq, np.zeros(2244)]), d1)
+                loss_seq = sgm_generate(777, len(fec_in_seq), p, q)
                 loss_seq = 1-loss_seq
                 received_seq = loss_seq*fec_in_seq
                 re_fec_de_seq = conv_deinterleave(received_seq, d2)[2244:]
-                pkt_cnts = np.array_split(re_fec_de_seq, (188 + 16))
+                pkt_cnts = re_fec_de_seq.reshape(-1, (188 + 16) * 1)
 
             else:
-                loss_seq = sgm_generate(777, len(fec_seq),p,q)
+                loss_seq = sgm_generate(777, len(fec_seq), p, q)
                 loss_seq = 1-loss_seq
                 received_seq = loss_seq*fec_seq
-                pkt_cnts = np.array_split(received_seq, (188 + 16))
-            for pkt_idx in len(pkt_cnts):
-                if np.count_nonzero(pkt_cnts[pkt_idx] == 0)>8:
-                    losses[pkt_idx] += 1
+                pkt_cnts = received_seq.reshape(-1, (188 + 16) * 1)
+            for pkt_idx in range(len(pkt_cnts)):
+                num_sym_err = np.count_nonzero(pkt_cnts[pkt_idx] == 0)
+                if num_sym_err > 8 * 1:
+                    losses[num_pkts_received + pkt_idx] += 1
 
         else:
             # TODO: Set "frame_loss" based on "pkt_losses" without FEC.
-            orig_seq = np.ones(f_pkts[i] * (188 + 0) * 8)  # 不使用Reed Salomon Code
+            orig_seq = np.ones(f_pkts[i] * (188 + 0) * 1)  # 不使用Reed Salomon Code
             loss_seq = sgm_generate(777, len(orig_seq), p, q)
             loss_seq = 1 - loss_seq
-            received_seq = loss_seq * fec_seq
-            pkt_cnts = np.array_split(received_seq, (188 + 16))
-            for pkt_idx in len(pkt_cnts):
-                if np.count_nonzero(pkt_cnts[pkt_idx] == 0)>0:
+            received_seq = loss_seq * orig_seq
+            pkt_cnts = received_seq.reshape(-1, (188 + 0) * 1)
+            for pkt_idx in range(len(pkt_cnts)):
+                if np.count_nonzero(pkt_cnts[pkt_idx] == 0) > 0 * 1:
                     losses[num_pkts_received + pkt_idx] += 1
         pkt_losses = sum(losses[num_pkts_received:num_pkts_received + f_pkts[i] - 1])
         num_pkts_received += f_pkts[i]
         num_frames_received += 1
         if pkt_losses == 0:
-            frame_loss[i] = True
-        else:
             frame_loss[i] = False
+        else:
+            frame_loss[i] = True
 
         # frame decodability
-        if not frame_loss: # see the fec-dependent handling of "frame_loss" above.
+        if not frame_loss[i]:   # see the fec-dependent handling of "frame_loss" above.
             match f_type[i]:
                 case 'I':
                     # TODO: Implement.
+                    frame_decoded[i] = True
                     num_frames_decoded += 1
                     i_frame_number = i
                 case 'P':
                     # TODO: Implement.
-                    if frame_loss[np.where([i-num_b_frames - 1])] == i_frame_number:
+                    if i_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
+                        frame_decoded[i] = True
                         num_frames_decoded += 1
                         p_frame_number = i
-                    elif frame_loss[f_number[i-1]] == p_frame_number:
+                    elif p_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
+                        frame_decoded[i] = True
                         num_frames_decoded += 1
                         p_frame_number = i
-
                 case 'B':
                     # TODO: Implement.
+                    ceil_idx = np.where(f_number == math.ceil(f_number[i] / (num_b_frames + 1)) * (num_b_frames + 1))[0]
+                    floor_idx = np.where(f_number == math.floor(f_number[i] / (num_b_frames + 1)) * (num_b_frames + 1))[0]
+                    if frame_decoded[floor_idx] and frame_decoded[ceil_idx]:
+                        frame_decoded[i] = True
+                        num_frames_decoded += 1
 
                 case _:
                     sys.exit("Unkown frame type is detected.")
 
-    return num_frames_decoded / num_frames # DFR
+    return num_frames_decoded / num_frames  # DFR
 
 
 if __name__ == '__main__':
@@ -188,12 +196,12 @@ if __name__ == '__main__':
 
     # set variables using command-line arguments
     num_frames = args.num_frames
-    loss_model = args.loss_model
+    # loss_model = args.loss_model
     loss_probability = args.loss_probability
     video_trace = args.video_trace
     ci = args.ci
     fec = args.fec
-    trace = args.trace
+    # trace = args.trace
 
     # run simulation and display the resulting DFR.
     dfr = dfr_simulation(
@@ -203,4 +211,4 @@ if __name__ == '__main__':
         args.video_trace,
         args.fec,
         args.ci)
-    print(f"Decodable frame rate = {dfr:.4E}\n")
+    print(f"Decodable frame rate = {dfr:.2%}\n")
