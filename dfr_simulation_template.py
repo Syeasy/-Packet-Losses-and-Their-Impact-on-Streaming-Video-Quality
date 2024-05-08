@@ -133,11 +133,16 @@ def dfr_simulation(
                     i_frame_number = i
                 case 'P':
                     # TODO: Implement.
-                    if i_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
-                        frame_decoded[i] = True
-                        num_frames_decoded += 1
-                        p_frame_number = i
-                    elif p_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
+                    # if i_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
+                    #     frame_decoded[i] = True
+                    #     num_frames_decoded += 1
+                    #     p_frame_number = i
+                    # elif p_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
+                    #     frame_decoded[i] = True
+                    #     num_frames_decoded += 1
+                    #     p_frame_number = i
+                    floor_idx = np.where(f_number == f_number[i] - num_b_frames - 1)[0]
+                    if frame_decoded[floor_idx]:
                         frame_decoded[i] = True
                         num_frames_decoded += 1
                         p_frame_number = i
