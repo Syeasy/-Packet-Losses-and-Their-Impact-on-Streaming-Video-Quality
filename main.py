@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib as mpl
 from dfr_simulation_template import dfr_simulation
 
-if __name__ == "__main1__":
+if __name__ == "__main__":
     task_list = [1, 2, 3, 4]  # select task we want to run
     for task in task_list:
         if not isinstance(task, int):
@@ -77,8 +77,6 @@ if __name__ == "__main1__":
                                                    num_frames=10000, loss_probability=pl, fec=True, ci=False)
                 decoded_rate_3[i] = dfr_simulation(random_seed=777, video_trace='silenceOfTheLambs_verbose',
                                                    num_frames=10000, loss_probability=pl, fec=True, ci=True)
-                # print(f'Symbol loss rate: {pl:.4f} -> decoded rate: '
-                #       f'1.{decoded_rate_1[i]:.2%} 2.{decoded_rate_2[i]:.2%}\n')
                 print(f'Symbol loss rate: {pl:.4f} -> decoded rate: '
                       f'1. {decoded_rate_1[i]:.2%} 2. {decoded_rate_2[i]:.2%} 3.{decoded_rate_3[i]:.2%}\n')
             time_end = time.time()
