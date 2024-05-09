@@ -37,7 +37,7 @@ if __name__ == "__main__":
                 print(f'Task2: Symbol loss rate: {pl:.4f} -> decoded rate: {decoded_rate_t2[i]:.2%} \n')
         elif task == 3:
             # task 3: dfr_simulation with fec interleaving tech, using pl = 1e-4 and 1e-3
-            pl_list = [1e-2]
+            pl_list = [1e-4, 1e-3]
             lenx = len(pl_list)
             decoded_rate_t3 = np.zeros(lenx)
             if_fec = True
@@ -49,6 +49,8 @@ if __name__ == "__main__":
         # task 4: Compare three different experiments setting results and plot the dfr curve
         elif task == 4:
             # task4:
+            print('this simulation cost 6254 seconds on my weak computer, i5-10210U for git holder\n'
+                  'if you do not need a precise curve, you can simply change the [resolution] variable to 2 or more')
             unit = 1e-4
             resolution = 1
             up_limit = 40

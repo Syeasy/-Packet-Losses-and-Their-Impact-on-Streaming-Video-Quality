@@ -73,15 +73,12 @@ def dfr_simulation(
         # is necessarily 1) from this index gives the GOP length
     gop_size = f_number[idx]  # N.B.: the frame number of the 2nd I frame is GOP size.
     num_b_frames = f_number[1] - f_number[0] - 1  # between I and the 1st P frames
-    i_frame_number = -1  # the last decodable I frame number
-    p_frame_number = -1  # the last decodable P frame number
     num_pkts_received = 0
     num_frames_decoded = 0
     num_frames_received = 0
     losses = np.zeros(n_pkts)
     frame_loss = np.zeros(num_frames, dtype=bool)
     frame_decoded = np.zeros(num_frames, dtype=bool)
-    decoded_idx = []
     # main loop
     for i in range(num_frames):
         # frame loss
@@ -132,24 +129,12 @@ def dfr_simulation(
                     # TODO: Implement.
                     frame_decoded[i] = True
                     num_frames_decoded += 1
-                    decoded_idx.append(f_number[i])
-                    i_frame_number = i
                 case 'P':
                     # TODO: Implement.
-                    # if i_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
-                    #     frame_decoded[i] = True
-                    #     num_frames_decoded += 1
-                    #     p_frame_number = i
-                    # elif p_frame_number in np.where(f_number == f_number[i] - num_b_frames - 1)[0]:
-                    #     frame_decoded[i] = True
-                    #     num_frames_decoded += 1
-                    #     p_frame_number = i
                     floor_idx = np.where(f_number == f_number[i] - num_b_frames - 1)[0]
                     if frame_decoded[floor_idx]:
                         frame_decoded[i] = True
                         num_frames_decoded += 1
-                        decoded_idx.append(f_number[i])
-                        p_frame_number = i
                 case 'B':
                     # TODO: Implement.
                     ceil_idx = np.where(f_number == math.ceil(f_number[i] / (num_b_frames + 1)) * (num_b_frames + 1))[0]
@@ -158,10 +143,8 @@ def dfr_simulation(
                     if frame_decoded[floor_idx] and frame_decoded[ceil_idx]:
                         frame_decoded[i] = True
                         num_frames_decoded += 1
-                        decoded_idx.append(f_number[i])
                 case _:
                     sys.exit("Unkown frame type is detected.")
-    np.save('1e-2frame_decoded.npy', decoded_idx)
     return num_frames_decoded / num_frames  # DFR
 
 
