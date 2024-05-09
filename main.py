@@ -63,7 +63,7 @@ if __name__ == "__main__":
             print('simulation starts!\n')
             result_directory = 'simulation_result/'
             folder_name = result_directory + 'task4_pl1_40'
-            # 使用os.makedirs()创建文件夹，如果文件夹已经存在，则会抛出异常
+            # use os.makedirs() to create result directory
             try:
                 os.makedirs(folder_name)
                 print(f"folder '{folder_name}' created successfully")
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             decoded_rate_3_str = [f'Symbol loss rate:{pl} -> decoded rate:{rate:.2%}\n'
                                   for pl, rate in zip(pl_list, decoded_rate_3)]
 
-            # 将列表保存为.npy文件
+            # save the result list as .npy file
             #
             np.save(f'{folder_name}/decoded_rate_1_.npy', decoded_rate_1)
             with open(f'{folder_name}/decoded_rate_1_str.txt', 'w') as f:
