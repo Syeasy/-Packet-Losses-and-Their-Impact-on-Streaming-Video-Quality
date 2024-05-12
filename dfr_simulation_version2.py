@@ -25,7 +25,7 @@ from conv_interleave import conv_interleave, conv_deinterleave
 from sgm_generate import sgm_generate
 
 
-def dfr_simulation(
+def dfr_simulation_v2(
         random_seed,
         num_frames,
         loss_probability,
@@ -53,6 +53,7 @@ def dfr_simulation(
     p = 1e-4
     q = p * (1.0 - loss_probability) / loss_probability
     n_pkts = sum(f_pkts)  # the number of packets for the whole frames
+    pkt_size = 204 if fec else 188
     if ci:
         # apply convolutional interleaving/deinterleaving.
         # N.B.:
@@ -63,10 +64,17 @@ def dfr_simulation(
         # assume origin sequence is all 1
         d1 = [int(i) for i in "17,34,51,68,85,102,119,136,153,170,187".split(',')]
         d2 = d1[::-1]
+        len_sending_seq = pkt_size * n_pkts
+        sending_seq = conv_interleave(np.concatenate([np.ones(len_sending_seq), np.zeros(2244)]), d1)
+        loss_seq = sgm_generate(random_seed, len_sending_seq + 2244, p, q) ^ 1
+        received_seq = conv_deinterleave(loss_seq * sending_seq, d2)[2244:]
 
     else:
         # TODO: Implement.
-        print()
+        len_sending_seq = pkt_size * n_pkts
+        sending_seq = np.ones(len_sending_seq)
+        loss_seq = sgm_generate(random_seed, len_sending_seq, p, q) ^ 1
+        received_seq = loss_seq * sending_seq
     # initialize variables.
     idx = -1
     for j in range(2):
@@ -83,23 +91,11 @@ def dfr_simulation(
     # main loop
     for i in range(num_frames):
         # frame loss
-
         if fec:
             # TODO: Set "frame_loss" based on "pkt_losses" with FEC.
-            fec_seq = np.ones(f_pkts[i] * (188 + 16) * 1)  # Using Reed Salomon Code
-            if ci:
-                fec_in_seq = conv_interleave(np.concatenate([fec_seq, np.zeros(2244)]), d1)
-                loss_seq = sgm_generate(777, len(fec_in_seq), p, q)
-                loss_seq = 1 - loss_seq
-                received_seq = loss_seq * fec_in_seq
-                re_fec_de_seq = conv_deinterleave(received_seq, d2)[2244:]
-                pkt_cnts = re_fec_de_seq.reshape(-1, (188 + 16) * 1)
+            received_frame = received_seq[num_pkts_received * pkt_size: (num_pkts_received + f_pkts[i]) * pkt_size]
+            pkt_cnts = received_frame.reshape(-1, pkt_size * 1)
 
-            else:
-                loss_seq = sgm_generate(777, len(fec_seq), p, q)
-                loss_seq = 1 - loss_seq
-                received_seq = loss_seq * fec_seq
-                pkt_cnts = received_seq.reshape(-1, (188 + 16) * 1)
             for pkt_idx in range(len(pkt_cnts)):
                 num_sym_err = np.count_nonzero(pkt_cnts[pkt_idx] == 0)
                 if num_sym_err > 8 * 1:
@@ -107,11 +103,8 @@ def dfr_simulation(
 
         else:
             # TODO: Set "frame_loss" based on "pkt_losses" without FEC.
-            orig_seq = np.ones(f_pkts[i] * (188 + 0) * 1)  # Abandon Reed Salomon Code
-            loss_seq = sgm_generate(777, len(orig_seq), p, q)
-            loss_seq = 1 - loss_seq
-            received_seq = loss_seq * orig_seq
-            pkt_cnts = received_seq.reshape(-1, (188 + 0) * 1)
+            received_frame = received_seq[num_pkts_received * pkt_size: (num_pkts_received + f_pkts[i]) * pkt_size]
+            pkt_cnts = received_frame.reshape(-1, pkt_size * 1)
             for pkt_idx in range(len(pkt_cnts)):
                 if np.count_nonzero(pkt_cnts[pkt_idx] == 0) > 0 * 1:
                     losses[num_pkts_received + pkt_idx] += 1
@@ -198,7 +191,7 @@ if __name__ == '__main__':
     # trace = args.trace
 
     # run simulation and display the resulting DFR.
-    dfr = dfr_simulation(
+    dfr = dfr_simulation_v2(
         args.random_seed,
         args.num_frames,
         args.loss_probability,
